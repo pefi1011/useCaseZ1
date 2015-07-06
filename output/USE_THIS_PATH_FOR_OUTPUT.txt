@@ -1,0 +1,6 @@
+Update your cli arguments
+
+Example for cli arguments:
+"/Software/Workspace/wikiEditHistoryProject/input" "/Software/Workspace/wikiEditHistoryProject/output/"
+
+http://stackoverflow.com/questions/2066307/how-do-you-input-commandline-argument-in-intellij-idea
