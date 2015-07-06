@@ -11,3 +11,4 @@
 !/output/USE_THIS_PATH_FOR_OUTPUT.txt
 /clusterResults/*USE_THIS_PATH_DOWNLOADING_FROM_CLUSTER.txt
 !/clusterResults/USE_THIS_PATH_DOWNLOADING_FROM_CLUSTER.txt
+useCaseZ1.iml
