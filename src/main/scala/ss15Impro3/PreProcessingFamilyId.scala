@@ -1,6 +1,5 @@
 package ss15Impro3
 
-import com.sun.jersey.json.impl.ImplMessages
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.core.fs.FileSystem.WriteMode
@@ -18,12 +17,12 @@ object PreProcessingFamilyId {
 
 
   def main(args: Array[String]) {
-    //TODO
 
     if (args.length < 2) {
       sys.error("inputFilePath and outputPath console parameters are missing")
       sys.exit(1)
     }
+
     inputPath = args(0)
     outputPath = args(1)
     println("inputFilePath: " + inputPath)
@@ -77,9 +76,9 @@ object PreProcessingFamilyId {
       .map(t => (t._1._1, t._1._2, t._1._3, t._1._4, t._2._2))
       //combine again the products which were bought in one transaction
       .groupBy(0,1,2,3)
+      // family ids instead of
       .reduce((t1, t2) => (t1._1, t1._2, t1._3, t1._4, t1._5 + ";" + t2._5))
-      // family ids instead
-      .map(t => t._5)
+      .map(t => (t._1, t._2, t._5, t._4))
 
     userFilterData.writeAsText(outputPath + "/preProcessingFamilyId" , WriteMode.OVERWRITE)
 
