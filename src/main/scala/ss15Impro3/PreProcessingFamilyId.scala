@@ -42,7 +42,7 @@ object PreProcessingFamilyId {
           val infos = in.split(";")
 
           // Remove the hours minutes and seconds of the date
-          (infos(0), infos(1))
+          (infos(0), infos(1).replace(" ",""))
         }
       }
     )
