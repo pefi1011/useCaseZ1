@@ -10,41 +10,17 @@ import org.apache.flink.util.Collector
 
 object AssociationRuleMining {
 
-  // example for cli params: inputPath outputPath
-  // "/Software/Workspace/useCaseZ1/input/250data.txt" "/Software/Workspace/useCaseZ1/output" "/Software/Workspace/useCaseZ1/output/prepOutput"
-  var inputFilePath: String = ""
-  var outputFilePath: String = ""
-  var prepOutputPath = ""
-
-  //var inputFilePath: String = "/home/jjoon/250data.txt"
-  //var outputFilePath: String = "/home/jjoon/output/"
-  //var prepOutputPath = "/home/jjoon/output/"
-
-  private var maxIterations: String = "6"
-  private var minSupport: String = "3"
-
-  // Test Case fileInput = false
-  //private val fileInput: Boolean = false
-  private val parseContents = " "
-  //private val parseKeyValue = "\t"
+  private var inputFilePath: String = ""
+  private var outputFilePath: String = ""
+  private var prepOutputPath = ""
+  private var maxIterations: String = ""
+  private var minSupport: String = ""
 
   def main(args: Array[String]) {
 
-
-    if (args.length < 3) {
-      sys.error("inputFilePath, outputPath and prepOutputPath console parameters are missing")
-      sys.exit(1)
+    if (!parseParameters(args)) {
+          return
     }
-
-    inputFilePath = args(0)
-    outputFilePath = args(1)
-    prepOutputPath = args(2)
-    println("inputFilePath: " + inputFilePath)
-    println("outputFilePath: " + inputFilePath)
-
-    //    if (!parseParameters(args)) {
-    //      return
-    //    }
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -74,6 +50,7 @@ object AssociationRuleMining {
     env.execute("Scala AssociationRule Example")
   }
 
+  // Depending on what type you want to  filter; SALE or VIEW
   def getInputDataPreparedForARM(env: ExecutionEnvironment, input: String): DataSet[String] = {
 
     val data: DataSet[(String, String, String, String, String)] = env.readCsvFile(input)
@@ -145,7 +122,7 @@ object AssociationRuleMining {
 
         def flatMap(in: String, out: Collector[Tuple2[String, Int]]) = {
 
-          val cItem1: Array[Int] = in.split(parseContents).map(_.toInt).sorted
+          val cItem1: Array[Int] = in.split(" ").map(_.toInt).sorted
 
           val combGen1 = new CombinationGenerator()
           val combGen2 = new CombinationGenerator()
@@ -220,23 +197,23 @@ object AssociationRuleMining {
 
   private def parseParameters(args: Array[String]): Boolean = {
 
-    // input, output maxIterations, kPath, minSupport
+    // input, output maxIterations, preOutputPath, kPath, minSupport
     if (args.length > 0) {
-      if (args.length == 4) {
+      if (args.length == 5) {
         inputFilePath = args(0)
         outputFilePath = args(1)
-        maxIterations = args(2)
-        minSupport = args(3)
+        prepOutputPath = args(2)
+        maxIterations = args(3)
+        minSupport = args(4)
         true
       } else {
-        System.err.println("Usage: AssociationRule <input path> <result path>")
+        System.err.println("Usage: AssociationRule <input path> <result path> <preOutputPath> <kPath> <minSupport>")
         false
       }
     } else {
       System.out.println("Executing AssociationRule example with built-in default data.")
       System.out.println("  Provide parameters to read input data from a file.")
       System.out.println("  The dataset is from local variable, not from inputPath as parameter.")
-
       true
     }
   }
