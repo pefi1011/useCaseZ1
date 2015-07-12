@@ -16,19 +16,8 @@ object AssociationRuleMining {
   private var maxIterations: String = ""
   private var minSupport: String = ""
 
-  def main(args: Array[String]) {
+  def getDataWithProductId(env: ExecutionEnvironment): DataSet[String] = {
 
-    if (!parseParameters(args)) {
-          return
-    }
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    val inputPath = "/home/vassil/workspace/useCaseZ1/output/preProcessingFamilyId/new"
-    val salesOnly: DataSet[String] = getInputDataPreparedForARM(env, inputPath)
-
-    // TODO Direct only with zalando transactions data and no pre-processing
-    /*
     val salesData: DataSet[String] = env.readTextFile(inputFilePath)
     val salesFilterData = salesData.filter(_.contains("SALE"))
 
@@ -41,8 +30,25 @@ object AssociationRuleMining {
       .groupBy(0)
       .reduce((t1, t2) => (t1._1, t1._2 + " " + t2._2))
       .map(t => t._2)
-    */
-    // END Direct only with Zalando transactions data and no pre-processing
+
+    salesOnly
+  }
+
+  def main(args: Array[String]) {
+
+    if (!parseParameters(args)) {
+          return
+    }
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val inputPath = "/home/vassil/workspace/useCaseZ1/output/preProcessingFamilyId/preprocessedData"
+    val salesOnly: DataSet[String] = getInputDataPreparedForARM(env, inputPath)
+
+
+    // TODO Use this data if you work with product ids directly from zalando transaction data
+    //val otherData: DataSet[String] = getDataWithProductId(env)
+
 
     // Run our algorithm with the sales REAL DATA
     run(salesOnly, outputFilePath, maxIterations.toInt, minSupport.toInt)

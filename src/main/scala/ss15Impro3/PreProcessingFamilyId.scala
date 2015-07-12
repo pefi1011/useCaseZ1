@@ -18,6 +18,8 @@ object PreProcessingFamilyId {
 
   def main(args: Array[String]) {
 
+
+
     if (args.length < 2) {
       sys.error("inputFilePath and outputPath console parameters are missing")
       sys.exit(1)
@@ -27,7 +29,6 @@ object PreProcessingFamilyId {
     outputPath = args(1)
     println("inputFilePath: " + inputPath)
     println("outputFilePath: " + outputPath)
-
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
