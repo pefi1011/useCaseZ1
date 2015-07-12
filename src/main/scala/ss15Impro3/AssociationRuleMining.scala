@@ -12,7 +12,6 @@ object AssociationRuleMining {
 
   private var inputFilePath: String = ""
   private var outputFilePath: String = ""
-  private var prepOutputPath = ""
   private var maxIterations: String = ""
   private var minSupport: String = ""
 
@@ -42,8 +41,7 @@ object AssociationRuleMining {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val inputPath = "/home/vassil/workspace/useCaseZ1/output/preProcessingFamilyId/preprocessedData"
-    val salesOnly: DataSet[String] = getInputDataPreparedForARM(env, inputPath)
+    val salesOnly: DataSet[String] = getInputDataPreparedForARM(env, inputFilePath)
 
 
     // TODO Use this data if you work with product ids directly from zalando transaction data
@@ -51,7 +49,7 @@ object AssociationRuleMining {
 
 
     // Run our algorithm with the sales REAL DATA
-    run(salesOnly, outputFilePath, maxIterations.toInt, minSupport.toInt)
+    runArm(salesOnly, outputFilePath, maxIterations.toInt, minSupport.toInt)
 
     env.execute("Scala AssociationRule Example")
   }
@@ -59,13 +57,13 @@ object AssociationRuleMining {
   // Depending on what type you want to  filter; SALE or VIEW
   def getInputDataPreparedForARM(env: ExecutionEnvironment, input: String): DataSet[String] = {
 
-    val data: DataSet[(String, String, String, String, String)] = env.readCsvFile(input)
+    val data: DataSet[(String, String, String, String, String)] = env.readCsvFile(input + "preProcessedData.csv")
     val onlySales = data.filter(_._5.equals("SALE")).map(_._4.replace("f-", "").replace(";", " "))
     return onlySales
 
   }
 
-  private def run(parsedInput: DataSet[String], output: String, maxIterations: Int, minSup: Int): Unit = {
+  private def runArm(parsedInput: DataSet[String], output: String, maxIterations: Int, minSup: Int): Unit = {
     var kTemp = 1
     var hasConverged = false
     val emptyArray: Array[Tuple2[String, Int]] = new Array[(String, Int)](0)
@@ -96,7 +94,7 @@ object AssociationRuleMining {
             //RULE: [2, 6] => [2, 4, 6] CONF RATE: 4/6=66.66
           )
         // TODO Should this be here ot in the main function?
-        confidences.writeAsText(outputFilePath + "/" + kTemp, WriteMode.OVERWRITE)
+        confidences.writeAsText(outputFilePath + "/armData/" + kTemp, WriteMode.OVERWRITE)
       }
 
       if (0 == cntRules) {
@@ -205,15 +203,14 @@ object AssociationRuleMining {
 
     // input, output maxIterations, preOutputPath, kPath, minSupport
     if (args.length > 0) {
-      if (args.length == 5) {
+      if (args.length == 4) {
         inputFilePath = args(0)
         outputFilePath = args(1)
-        prepOutputPath = args(2)
-        maxIterations = args(3)
-        minSupport = args(4)
+        maxIterations = args(2)
+        minSupport = args(3)
         true
       } else {
-        System.err.println("Usage: AssociationRule <input path> <result path> <preOutputPath> <kPath> <minSupport>")
+        System.err.println("Usage: AssociationRule <input path> <result path> <iterationCount> <minSupport>")
         false
       }
     } else {
