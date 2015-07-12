@@ -36,7 +36,7 @@ object AssociationRuleMining {
   def main(args: Array[String]) {
 
     if (!parseParameters(args)) {
-          return
+      return
     }
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -66,9 +66,9 @@ object AssociationRuleMining {
   private def runArm(parsedInput: DataSet[String], output: String, maxIterations: Int, minSup: Int): Unit = {
     var kTemp = 1
     var hasConverged = false
-    val emptyArray: Array[Tuple2[String, Int]] = new Array[(String, Int)](0)
+    val emptyArray: Array[(String, Int)] = new Array[(String, Int)](0)
     val emptyDS = ExecutionEnvironment.getExecutionEnvironment.fromCollection(emptyArray)
-    var preRules: DataSet[Tuple2[String, Int]] = emptyDS
+    var preRules: DataSet[(String, Int)] = emptyDS
 
     // According to how much K steps are, Making Pruned Candidate Set
     while (kTemp < maxIterations && !hasConverged) {
@@ -76,62 +76,68 @@ object AssociationRuleMining {
       printf("Starting K-Path %s\n", kTemp)
       println()
 
-      val candidateRules: DataSet[Tuple2[String, Int]] = findCandidates(parsedInput, preRules, kTemp, minSup)
+      val candidateRules: DataSet[(String, Int)] = findCandidates(parsedInput, preRules, kTemp, minSup)
 
       val tempRulesNew = candidateRules
+
+      /* TODO Check if it will work wit the collect
       // TODO Is it ok to collect here?
       val cntRules = candidateRules.collect.length
+      */
 
       if (kTemp >= 2) {
 
         // TODO Change it with some kind of join with special function
-        val confidences: DataSet[Tuple2[String, Double]] = preRules
+        val confidences: DataSet[(String, String, Double)] = preRules
           .crossWithHuge(tempRulesNew)
           .filter { item => containsAllFromPreRule(item._2._1, item._1._1) }
           .map(
             input =>
-              Tuple2(input._1._1 + " => " + input._2._1, 100 * (input._2._2 / input._1._2.toDouble))
+              (input._1._1, input._2._1, 100 * (input._2._2 / input._1._2.toDouble))
             //RULE: [2, 6] => [2, 4, 6] CONF RATE: 4/6=66.66
           )
         // TODO Should this be here ot in the main function?
-        confidences.writeAsText(outputFilePath + "/armData/" + kTemp, WriteMode.OVERWRITE)
+        confidences.writeAsCsv(outputFilePath + "/armData/" + kTemp, "\n", ",", WriteMode.OVERWRITE)
       }
 
+      /* TODO comment back only if using wich the collect earlier
       if (0 == cntRules) {
-        hasConverged = true
+       // hasConverged = true
+        kTemp+= 1
       } else {
-
+      */
         preRules = candidateRules
 
         kTemp += 1
+      /*
       }
+      */
     }
 
     printf("Converged K-Path %s\n", kTemp)
   }
 
-  def findCandidates(candidateInput: DataSet[String], prevRulesNew: DataSet[Tuple2[String, Int]], k: Int, minSup: Int): DataSet[Tuple2[String, Int]] = {
+  def findCandidates(candidateInput: DataSet[String], prevRulesNew: DataSet[(String, Int)], k: Int, minSup: Int): DataSet[(String, Int)] = {
 
     // 1) Generating Candidate Set Depending on K Path
     candidateInput.flatMap(
 
-      new RichFlatMapFunction[String, Tuple2[String, Int]]() {
+      new RichFlatMapFunction[String, (String, Int)]() {
 
         var broadcastedPreRules: util.List[(String, Int)] = null
 
         override def open(config: Configuration): Unit = {
           // 3. Access the broadcasted DataSet as a Collection
-          broadcastedPreRules = getRuntimeContext().getBroadcastVariable[Tuple2[String, Int]]("prevRules")
+          broadcastedPreRules = getRuntimeContext().getBroadcastVariable[(String, Int)]("prevRules")
         }
 
-        def flatMap(in: String, out: Collector[Tuple2[String, Int]]) = {
+        def flatMap(in: String, out: Collector[(String, Int)]) = {
 
           val cItem1: Array[Int] = in.split(" ").map(_.toInt).sorted
 
           val combGen1 = new CombinationGenerator()
           val combGen2 = new CombinationGenerator()
 
-          var candidates = scala.collection.mutable.ListBuffer.empty[(String, Int)]
           combGen1.reset(k, cItem1)
 
           while (combGen1.hasMoreCombinations) {
@@ -146,7 +152,7 @@ object AssociationRuleMining {
               while (combGen2.hasMoreCombinations && valid) {
                 val nextComb = java.util.Arrays.toString(combGen2.next)
 
-                // TODO If broadcast variable is bad solution then try this -> (BUT) Not serializable exception (THese should be the dataset solution)
+                // TODO If broadcast variable is bad solution then try this -> (BUT) Not serializable exception (These should be the dataset solution)
                 // Distributed way for the bottom "for"
                 /*
                 var containsItemNew : Boolean = prevRulesNew.map{ item =>
@@ -165,7 +171,7 @@ object AssociationRuleMining {
               }
             }
             if (valid) {
-              out.collect(Tuple2(java.util.Arrays.toString(cItem2), 1))
+              out.collect((java.util.Arrays.toString(cItem2), 1))
             }
           }
         }

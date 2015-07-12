@@ -31,24 +31,21 @@ object GenerateUserPurchaseHistory {
 
 
 
-    val userData: DataSet[String] = env.readTextFile(inputPath)
+    val transactionData: DataSet[(String,String,String,String,String)] = env.readCsvFile(inputPath + "preProcessedData.csv")
 
-    val userFilterData = userData
-      .filter(_.contains("SALE"))
+    val combinedItemsForUser = transactionData
+      .filter(_._5.equals("SALE"))
       .flatMap(
 
-      new FlatMapFunction[String, (String,String)] {
+      new FlatMapFunction[(String,String,String,String,String), (String,String)] {
 
-        def flatMap(in: String, out: Collector[Tuple2[String, String]]) = {
+        def flatMap(in: (String,String,String,String,String), out: Collector[(String, String)]) = {
 
-          val info: Array[String] = in.split("\t")
-
-          val user = info(1)
-          val products: List[String] = info(3).split(",").toList
+          val user = in._2
+          val products: List[String] = in._4.split(";").toList
 
           for (product <- products) {
-            out.collect((user, product))
-
+            out.collect((user, product.replace("p-", "")))
           }
         }
       }).distinct
@@ -56,8 +53,17 @@ object GenerateUserPurchaseHistory {
       .groupBy(0)
       .reduce((t1,t2) => (t1._1, t1._2 + " " + t2._2)) // To combine all bought products
 
-    userFilterData.writeAsText(outputPath + "/userPurchaseHistory" , WriteMode.OVERWRITE)
+    combinedItemsForUser.writeAsCsv(outputPath + "/userPurchaseHistory/allItemsOfUser" ,"\n", ",", WriteMode.OVERWRITE)
 
+    /*
+    val itemsForUser = transactionData
+      .filter(_._5.equals("SALE"))
+      .map(t => (t._2, t._4))
+      .groupBy(0)
+      .reduce((t1,t2) => (t1._1, t1._2 + " " + t1._2) )
+
+    itemsForUser.writeAsCsv(outputPath + "/userPurchaseHistory/singleTransactions" ,"\n", ",", WriteMode.OVERWRITE)
+    */
     env.execute("Scala AssociationRule Example")
   }
 

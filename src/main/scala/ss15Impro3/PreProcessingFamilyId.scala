@@ -74,7 +74,7 @@ object PreProcessingFamilyId {
           }
         }).distinct
       // Join with the product info data set
-      .joinWithHuge(productIdToProductFamily).where(5).equalTo(0)
+      .joinWithTiny(productIdToProductFamily).where(5).equalTo(0)
       // Get the product family information instead of product id
       .map(t => (t._1._1, t._1._2, t._1._3, t._1._4, t._1._5, t._2._2))
       //combine again the products which were bought in one transaction
