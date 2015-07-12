@@ -33,7 +33,7 @@ object PreProcessingFamilyId {
 
 
     // Read and process the product information
-    val productData: DataSet[String] = env.readTextFile(inputPath + "datainfo.txt")
+    val productData: DataSet[String] = env.readTextFile(inputPath + "productInfo.gz")
 
     val productIdToProductFamily = productData.map(
       new MapFunction[String, (String, String)]() {
@@ -49,7 +49,7 @@ object PreProcessingFamilyId {
     )
 
     // Read an process the transactions
-    val userData: DataSet[String] = env.readTextFile(inputPath + "50data.txt")
+    val userData: DataSet[String] = env.readTextFile(inputPath + "250data.txt")
     val userFilterData = userData
       .flatMap(
 
@@ -83,7 +83,7 @@ object PreProcessingFamilyId {
       .reduce((t1, t2) => (t1._1, t1._2, t1._3, t1._4, t1._5, t1._6 + ";" + t2._6))
       .map(t => (t._1, t._2, t._3, t._6, t._5))
 
-    userFilterData.writeAsText(outputPath + "/preProcessingFamilyId" , WriteMode.OVERWRITE)
+    userFilterData.writeAsCsv(outputPath + "/preProcessingFamilyId" , "\n", ",", WriteMode.OVERWRITE)
 
     env.execute("Scala AssociationRule Example")
   }

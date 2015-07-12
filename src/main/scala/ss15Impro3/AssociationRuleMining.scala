@@ -12,13 +12,13 @@ object AssociationRuleMining {
 
   // example for cli params: inputPath outputPath
   // "/Software/Workspace/useCaseZ1/input/250data.txt" "/Software/Workspace/useCaseZ1/output" "/Software/Workspace/useCaseZ1/output/prepOutput"
-   var inputFilePath: String = ""
-   var outputFilePath: String = ""
-   var prepOutputPath = ""
+  var inputFilePath: String = ""
+  var outputFilePath: String = ""
+  var prepOutputPath = ""
 
-   //var inputFilePath: String = "/home/jjoon/250data.txt"
-   //var outputFilePath: String = "/home/jjoon/output/"
-   //var prepOutputPath = "/home/jjoon/output/"
+  //var inputFilePath: String = "/home/jjoon/250data.txt"
+  //var outputFilePath: String = "/home/jjoon/output/"
+  //var prepOutputPath = "/home/jjoon/output/"
 
   private var maxIterations: String = "6"
   private var minSupport: String = "3"
@@ -42,17 +42,21 @@ object AssociationRuleMining {
     println("inputFilePath: " + inputFilePath)
     println("outputFilePath: " + inputFilePath)
 
-//    if (!parseParameters(args)) {
-//      return
-//    }
+    //    if (!parseParameters(args)) {
+    //      return
+    //    }
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
+    val inputPath = "/home/vassil/workspace/useCaseZ1/output/preProcessingFamilyId/new"
+    val salesOnly: DataSet[String] = getInputDataPreparedForARM(env, inputPath)
+
+    // TODO Direct only with zalando transactions data and no pre-processing
+    /*
     val salesData: DataSet[String] = env.readTextFile(inputFilePath)
     val salesFilterData = salesData.filter(_.contains("SALE"))
 
     val salesOnly = salesFilterData
-      //TODO change 1 to 2; or just leave it; TTYL
       .map(t => (t.split("\\s+")(1), t.split("\\s+")(3).replace(",", " ")
       // Remove Prefix "p-" to apply real dataset to our mining algorithm
       .replace("p-", "")))
@@ -61,20 +65,21 @@ object AssociationRuleMining {
       .groupBy(0)
       .reduce((t1, t2) => (t1._1, t1._2 + " " + t2._2))
       .map(t => t._2)
-
-    // Collect Real Dataset according to User_session and SALE
-    salesOnly.writeAsText(prepOutputPath + "/sales", WriteMode.OVERWRITE)
+    */
+    // END Direct only with Zalando transactions data and no pre-processing
 
     // Run our algorithm with the sales REAL DATA
     run(salesOnly, outputFilePath, maxIterations.toInt, minSupport.toInt)
 
-    // Previous work for TESTING
-    //val text = getTextDataSet(env)
-    // 0) FrequentItem Function
-    //val input = parseText(text)
-    //run(input, outputFilePath, maxIterations.toInt, minSupport.toInt)
-
     env.execute("Scala AssociationRule Example")
+  }
+
+  def getInputDataPreparedForARM(env: ExecutionEnvironment, input: String): DataSet[String] = {
+
+    val data: DataSet[(String, String, String, String, String)] = env.readCsvFile(input)
+    val onlySales = data.filter(_._5.equals("SALE")).map(_._4.replace("f-", "").replace(";", " "))
+    return onlySales
+
   }
 
   private def run(parsedInput: DataSet[String], output: String, maxIterations: Int, minSup: Int): Unit = {
@@ -235,30 +240,7 @@ object AssociationRuleMining {
       true
     }
   }
-
-  // Previous work for TESTING
-  /*
-  private def getTextDataSet(env: ExecutionEnvironment): DataSet[String] = {
-
-    if (fileInput) {
-      println("From File")
-      env.readTextFile(inputFilePath)
-    }
-    else {
-      println("From Code")
-      env.fromCollection(ss15Impro3.RecommendationData.ITEMS)
-    }
-  }
-
-  // TESTING
-  private def parseText(textInput:DataSet[String]) = {
-    textInput.map { input =>
-      input.split(parseContents).distinct.mkString(parseContents)
-    }
-  }
-  */
 }
-
 class AssociationRuleMining {
 
 }
