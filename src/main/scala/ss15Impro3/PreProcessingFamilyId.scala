@@ -50,7 +50,7 @@ object PreProcessingFamilyId {
     )
 
     // Read an process the transactions
-    val userData: DataSet[String] = env.readTextFile(inputPath + "250data.txt")
+    val userData: DataSet[String] = env.readTextFile(inputPath + "verysmall") //250data.txt")
     val userFilterData = userData
       .flatMap(
 
@@ -72,7 +72,8 @@ object PreProcessingFamilyId {
 
             }
           }
-        }).distinct
+        })
+      //.distinct
       // Join with the product info data set
       .joinWithTiny(productIdToProductFamily).where(5).equalTo(0)
       // Get the product family information instead of product id

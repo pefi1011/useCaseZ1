@@ -41,10 +41,10 @@ object AssociationRuleMining {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
+    // Use that if you start algorithm with preprocessed data (with family ids)
     val salesOnly: DataSet[String] = getInputDataPreparedForARM(env, inputFilePath)
 
-
-    // TODO Use this data if you work with product ids directly from zalando transaction data
+    // Use this data if you start algorithm with the raw data (with product ids)
     //val otherData: DataSet[String] = getDataWithProductId(env)
 
 
