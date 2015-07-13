@@ -14,6 +14,7 @@ object AssociationRuleMining {
   private var outputFilePath: String = ""
   private var maxIterations: String = ""
   private var minSupport: String = ""
+  private var isFamilyID: String = ""
 
   def getDataWithProductId(env: ExecutionEnvironment): DataSet[String] = {
 
@@ -48,15 +49,17 @@ object AssociationRuleMining {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    // Use that if you start algorithm with preprocessed data (with family ids)
-    //val salesOnlyFamilyId: DataSet[String] = getInputDataPreparedForARM(env, inputFilePath)
+    if (isFamilyID.equals("1")){
+      // Use that if you start algorithm with preprocessed data (with family ids)
+      val salesOnlyFamilyId: DataSet[String] = getInputDataPreparedForARM(env, inputFilePath)
+      runArm(salesOnlyFamilyId, outputFilePath, maxIterations.toInt, minSupport.toInt)
 
-    // Use this data if you start algorithm with the raw data (with product ids)
-    val salesOnlyProductId: DataSet[String] = getDataWithProductId(env)
+    } else {
+      // Use this data if you start algorithm with the raw data (with product ids)
+      val salesOnlyProductId: DataSet[String] = getDataWithProductId(env)
+      runArm(salesOnlyProductId, outputFilePath, maxIterations.toInt, minSupport.toInt)
 
-
-    // Run our algorithm with the sales REAL DATA
-    runArm(salesOnlyProductId, outputFilePath, maxIterations.toInt, minSupport.toInt)
+    }
 
     env.execute("Scala AssociationRule Example")
   }
@@ -65,9 +68,12 @@ object AssociationRuleMining {
   def getInputDataPreparedForARM(env: ExecutionEnvironment, input: String): DataSet[String] = {
 
     val data: DataSet[(String, String, String, String, String)] = env.readCsvFile(input)
-    val onlySales = data.filter(_._5.equals("SALE")).map(_._4.replace("f-", "").replace(";", " "))
-    return onlySales
+    val onlySales = data
+      .filter(_._5.equals("SALE"))
+      .map(_._4.replace("f-", "")
+      .replace(";", " "))
 
+    return onlySales
   }
 
   private def runArm(parsedInput: DataSet[String], output: String, maxIterations: Int, minSup: Int): Unit = {
@@ -215,22 +221,16 @@ object AssociationRuleMining {
   private def parseParameters(args: Array[String]): Boolean = {
 
     // input, output maxIterations, preOutputPath, kPath, minSupport
-    if (args.length > 0) {
-      if (args.length == 4) {
-        inputFilePath = args(0)
-        outputFilePath = args(1)
-        maxIterations = args(2)
-        minSupport = args(3)
-        true
-      } else {
-        System.err.println("Usage: AssociationRule <input path> <result path> <iterationCount> <minSupport>")
-        false
-      }
-    } else {
-      System.out.println("Executing AssociationRule example with built-in default data.")
-      System.out.println("  Provide parameters to read input data from a file.")
-      System.out.println("  The dataset is from local variable, not from inputPath as parameter.")
+    if (args.length == 5) {
+      inputFilePath = args(0)
+      outputFilePath = args(1)
+      maxIterations = args(2)
+      minSupport = args(3)
+      isFamilyID = args(4)
       true
+    } else {
+      System.err.println("Usage: AssociationRule <input path> <result path> <iterationCount> <minSupport>")
+      false
     }
   }
 }
