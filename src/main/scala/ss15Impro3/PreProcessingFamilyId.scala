@@ -1,40 +1,39 @@
 package ss15Impro3
 
-import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.common.functions.{ReduceFunction, FlatMapFunction, MapFunction}
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.functions.MapFunction
-
 
 
 object PreProcessingFamilyId {
 
   // example for cli params: inputPath outputPath
-  // "/Software/Workspace/useCaseZ1/input/datzal.txt" "/Software/Workspace/useCaseZ1/output"
-  var inputPath = ""
+  var inputPathProduct = ""
+  var inputPathShop = ""
   var outputPath = ""
 
 
   def main(args: Array[String]) {
 
-
-
-    if (args.length < 2) {
-      sys.error("inputFilePath and outputPath console parameters are missing")
+    if (args.length < 3) {
+      sys.error("inputFile_Product and inputFile_Shop and outputPath console parameters are missing")
       sys.exit(1)
     }
 
-    inputPath = args(0)
-    outputPath = args(1)
-    println("inputFilePath: " + inputPath)
+    inputPathProduct = args(0)
+    inputPathShop = args(1)
+    outputPath = args(2)
+    println("inputFilePath_product: " + inputPathProduct)
+    println("inputFilePath_shop: " + inputPathShop)
     println("outputFilePath: " + outputPath)
+
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
 
     // Read and process the product information
-    val productData: DataSet[String] = env.readTextFile(inputPath + "productInfo.gz")
+    val productData: DataSet[String] = env.readTextFile(inputPathProduct)
 
     val productIdToProductFamily = productData.map(
       new MapFunction[String, (String, String)]() {
@@ -50,7 +49,7 @@ object PreProcessingFamilyId {
     )
 
     // Read an process the transactions
-    val userData: DataSet[String] = env.readTextFile(inputPath + "verysmall") //250data.txt")
+    val userData: DataSet[String] = env.readTextFile(inputPathShop)
     val userFilterData = userData
       .flatMap(
 
@@ -72,24 +71,40 @@ object PreProcessingFamilyId {
 
             }
           }
-        })
-      //.distinct
+        }).distinct
       // Join with the product info data set
-      .joinWithTiny(productIdToProductFamily).where(5).equalTo(0)
+      .joinWithHuge(productIdToProductFamily).where(5).equalTo(0)
       // Get the product family information instead of product id
       .map(t => (t._1._1, t._1._2, t._1._3, t._1._4, t._1._5, t._2._2))
       //combine again the products which were bought in one transaction
 
       .groupBy(0,1,2,3,4)
-      // family ids instead of
+      // family ids instead of product id
       .reduce((t1, t2) => (t1._1, t1._2, t1._3, t1._4, t1._5, t1._6 + ";" + t2._6))
+      //d-0,u-1003084,u-1003084_0,f-941055,SALE
       .map(t => (t._1, t._2, t._3, t._6, t._5))
 
-    userFilterData.writeAsCsv(outputPath + "/preProcessingFamilyId" , "\n", ",", WriteMode.OVERWRITE)
+    // join productId or familyId according to the session
+    val userSession = userFilterData
+      .groupBy(2)
+      .reduce(new ReduceFunction[(String, String, String, String, String)] {
+      override def reduce(t1: (String, String, String, String, String), t2: (String, String, String, String, String)): (String, String, String, String, String) = {
+
+        var ids = t1._4
+        for (prv <- t2._4.split(";")) {
+          if (!ids.contains(prv)) {
+            ids = ids +";" + prv
+          }
+        }
+
+        return (t1._1, t1._2, t1._3, ids, t1._5)
+      }
+    })
+
+    userSession.writeAsCsv(outputPath, "\n", ",", WriteMode.OVERWRITE)
 
     env.execute("Scala AssociationRule Example")
   }
-
 
 }
 
