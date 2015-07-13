@@ -42,14 +42,14 @@ object AssociationRuleMining {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     // Use that if you start algorithm with preprocessed data (with family ids)
-    val salesOnly: DataSet[String] = getInputDataPreparedForARM(env, inputFilePath)
+    //val salesOnlyFamilyId: DataSet[String] = getInputDataPreparedForARM(env, inputFilePath)
 
     // Use this data if you start algorithm with the raw data (with product ids)
-    //val otherData: DataSet[String] = getDataWithProductId(env)
+    val salesOnlyProductId: DataSet[String] = getDataWithProductId(env)
 
 
     // Run our algorithm with the sales REAL DATA
-    runArm(salesOnly, outputFilePath, maxIterations.toInt, minSupport.toInt)
+    runArm(salesOnlyProductId, outputFilePath, maxIterations.toInt, minSupport.toInt)
 
     env.execute("Scala AssociationRule Example")
   }
@@ -57,7 +57,7 @@ object AssociationRuleMining {
   // Depending on what type you want to  filter; SALE or VIEW
   def getInputDataPreparedForARM(env: ExecutionEnvironment, input: String): DataSet[String] = {
 
-    val data: DataSet[(String, String, String, String, String)] = env.readCsvFile(input + "preProcessedData.csv")
+    val data: DataSet[(String, String, String, String, String)] = env.readCsvFile(input)
     val onlySales = data.filter(_._5.equals("SALE")).map(_._4.replace("f-", "").replace(";", " "))
     return onlySales
 
