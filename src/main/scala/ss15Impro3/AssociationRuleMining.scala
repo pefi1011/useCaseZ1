@@ -21,6 +21,7 @@ object AssociationRuleMining {
     val salesFilterData = salesData.filter(_.contains("SALE"))
 
     val salesOnly = salesFilterData
+    //val salesOnly = salesData
       .map( new MapFunction[String, (String, String)]() {
 
       def map(in: String): (String, String) = {
