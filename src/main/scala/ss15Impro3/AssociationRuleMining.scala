@@ -2,7 +2,7 @@ package ss15Impro3
 
 import java.util
 
-import org.apache.flink.api.common.functions.RichFlatMapFunction
+import org.apache.flink.api.common.functions.{MapFunction, RichFlatMapFunction}
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
@@ -21,9 +21,15 @@ object AssociationRuleMining {
     val salesFilterData = salesData.filter(_.contains("SALE"))
 
     val salesOnly = salesFilterData
-      .map(t => (t.split("\\s+")(1), t.split("\\s+")(3).replace(",", " ")
-      // Remove Prefix "p-" to apply real dataset to our mining algorithm
-      .replace("p-", "")))
+      .map( new MapFunction[String, (String, String)]() {
+
+      def map(in: String): (String, String) = {
+
+        val infos = in.split("\\s+")
+
+        (infos(1), infos(3).replace(",", " ").replace("p-", ""))
+      }
+    })
       // Group by user session
       .distinct
       .groupBy(0)
