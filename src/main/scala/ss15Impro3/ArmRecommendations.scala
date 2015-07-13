@@ -1,12 +1,12 @@
 package ss15Impro3
 
+import java.util
+
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.MapFunction
-
-
 
 object ArmRecommendations {
 
@@ -33,8 +33,8 @@ object ArmRecommendations {
 
 
     // Read data
-    val armData = env.readTextFile(inputArmDataPath + "armData.csv")
-    val userPurchaseHistoryData : DataSet[(String, String)] = env.readCsvFile(inputUserDataPath + "userPurchaseHistory.csv")
+    val armData : DataSet[(String, String, String)]= env.readCsvFile(inputArmDataPath, "\n", ";")
+    val userPurchaseHistoryData : DataSet[(String, String)] = env.readCsvFile(inputUserDataPath)
 
    val transformedUserPurchaseHistoryData = userPurchaseHistoryData.flatMap(new FlatMapFunction[(String, String), (String, String) ] {
      override def flatMap(t: (String, String), collector: Collector[(String, String)]): Unit = {
@@ -47,23 +47,31 @@ object ArmRecommendations {
      }
    })
 
-    val armDataChanged = armData.map(new MapFunction[String, (String, String)] {
-      override def map(t: String): (String, String) = {
+    transformedUserPurchaseHistoryData.writeAsText("/home/vassil/test/1", WriteMode.OVERWRITE)
 
-        val infos = t.split("\\] => \\[")
-        val left = infos(0).substring(2)
+    val armDataChanged = armData.map(new MapFunction[(String, String, String), (String, String)] {
+      override def map(t: (String, String, String)): (String, String) = {
 
-        val index = infos(1).indexOf("]")
-        val right = infos(1).dropRight(index).replace(", ", "")
-        (left, right)
+        val left = t._1.substring(1, t._1.length)
+        val items = t._2.substring(1, t._2.length() - 1).split(", ")
+
+        var itemsWithPrefix = ""
+
+        for(item <- items) {
+          itemsWithPrefix += " f-" + item
+        }
+
+        ("f-" + left, itemsWithPrefix)
       }
     })
 
-    val result = transformedUserPurchaseHistoryData.
-      joinWithHuge(armDataChanged)
+    armDataChanged.writeAsText("/home/vassil/test/2" , WriteMode.OVERWRITE)
+
+    val result = transformedUserPurchaseHistoryData
+      .joinWithHuge(armDataChanged)
       .where(1)
       .equalTo(0)
-      .map(t => (t._1, t._2._2))
+      //.map(t => (t._1, t._2._2))
 
 
     //productData.writeAsCsv(outputRecommendationPath + "/recommendationsPerUser" , "\n", ",", WriteMode.OVERWRITE)

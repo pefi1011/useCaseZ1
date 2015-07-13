@@ -69,7 +69,7 @@ object AssociationRuleMining {
 
     val data: DataSet[(String, String, String, String, String)] = env.readCsvFile(input)
     val onlySales = data
-      //.filter(_._5.equals("SALE"))
+      .filter(_._5.equals("SALE"))
       .map(_._4.replace("f-", "")
       .replace(";", " "))
 
@@ -78,6 +78,7 @@ object AssociationRuleMining {
 
   private def runArm(parsedInput: DataSet[String], output: String, maxIterations: Int, minSup: Int): Unit = {
     var kTemp = 1
+    var support = minSup
     var hasConverged = false
     val emptyArray: Array[(String, Int)] = new Array[(String, Int)](0)
     val emptyDS = ExecutionEnvironment.getExecutionEnvironment.fromCollection(emptyArray)
@@ -89,7 +90,7 @@ object AssociationRuleMining {
       printf("Starting K-Path %s\n", kTemp)
       println()
 
-      val candidateRules: DataSet[(String, Int)] = findCandidates(parsedInput, preRules, kTemp, minSup)
+      val candidateRules: DataSet[(String, Int)] = findCandidates(parsedInput, preRules, kTemp, support)
 
       val tempRulesNew = candidateRules
 
@@ -114,7 +115,7 @@ object AssociationRuleMining {
             //RULE: [2, 6] => [2, 4, 6] CONF RATE: 4/6=66.66
           )
         // TODO Should this be here ot in the main function?
-        confidences.writeAsCsv(outputFilePath + "/armData/" + kTemp, "\n", ",", WriteMode.OVERWRITE)
+        confidences.writeAsCsv(outputFilePath + "/armData/" + kTemp, "\n", ";", WriteMode.OVERWRITE)
       }
 
       /* TODO comment back only if using wich the collect earlier
@@ -123,9 +124,12 @@ object AssociationRuleMining {
         kTemp+= 1
       } else {
       */
-        preRules = candidateRules
+      preRules = candidateRules
 
-        kTemp += 1
+      kTemp += 1
+
+      // TODO
+      support -= 1
       /*
       }
       */
@@ -206,7 +210,7 @@ object AssociationRuleMining {
     // TODO do this some other way
     val newRuleCleaned = newRule.replaceAll("\\s+", "").replaceAll("[\\[\\](){}]", "")
     val preRuleCleaned = preRule.replaceAll("\\s+", "").replaceAll("[\\[\\](){}]", "")
-    println(newRule + " " + preRule)
+    //println(newRule + " " + preRule)
 
     val newRuleArray = newRuleCleaned.split(",")
     val preRuleArray = preRuleCleaned.split(",")
@@ -234,7 +238,7 @@ object AssociationRuleMining {
       isFamilyID = args(4)
       true
     } else {
-      System.err.println("Usage: AssociationRule <input path> <result path> <iterationCount> <minSupport>")
+      System.err.println("Usage: AssociationRule <input path> <result path> <iterationCount> <minSupport> <isFamily>")
       false
     }
   }
