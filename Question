@@ -1,0 +1,5 @@
+Is cross join ok in the algorithm? (How to remove crossWithHuge...)
+
+What if we use collect as well to check the count of rules and stop iterations?
+
+22 Minutes on this line: 07/13/2015 15:45:52	Combine (Reduce at ss15Impro3.AssociationRuleMining$.findCandidates(AssociationRuleMining.scala:199))(1/4) switched to RUNNING ?!?!

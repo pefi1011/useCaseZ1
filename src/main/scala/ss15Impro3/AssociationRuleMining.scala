@@ -19,10 +19,10 @@ object AssociationRuleMining {
   def getDataWithProductId(env: ExecutionEnvironment): DataSet[String] = {
 
     val salesData: DataSet[String] = env.readTextFile(inputFilePath)
-    val salesFilterData = salesData.filter(_.contains("SALE"))
+    //val salesFilterData = salesData.filter(_.contains("SALE"))
 
-    val salesOnly = salesFilterData
-    //val salesOnly = salesData
+    //val salesOnly = salesFilterData
+    val salesOnly = salesData
       .map( new MapFunction[String, (String, String)]() {
 
       def map(in: String): (String, String) = {
@@ -69,7 +69,7 @@ object AssociationRuleMining {
 
     val data: DataSet[(String, String, String, String, String)] = env.readCsvFile(input)
     val onlySales = data
-      .filter(_._5.equals("SALE"))
+      //.filter(_._5.equals("SALE"))
       .map(_._4.replace("f-", "")
       .replace(";", " "))
 
@@ -102,8 +102,12 @@ object AssociationRuleMining {
 
         // TODO Change it with some kind of join with special function
         val confidences: DataSet[(String, String, Double)] = preRules
+
+          //.join(tempRulesNew)
+
           .crossWithHuge(tempRulesNew)
           .filter { item => containsAllFromPreRule(item._2._1, item._1._1) }
+
           .map(
             input =>
               (input._1._1, input._2._1, 100 * (input._2._2 / input._1._2.toDouble))
@@ -202,6 +206,7 @@ object AssociationRuleMining {
     // TODO do this some other way
     val newRuleCleaned = newRule.replaceAll("\\s+", "").replaceAll("[\\[\\](){}]", "")
     val preRuleCleaned = preRule.replaceAll("\\s+", "").replaceAll("[\\[\\](){}]", "")
+    println(newRule + " " + preRule)
 
     val newRuleArray = newRuleCleaned.split(",")
     val preRuleArray = preRuleCleaned.split(",")
