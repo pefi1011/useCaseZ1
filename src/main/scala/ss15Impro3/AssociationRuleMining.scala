@@ -41,6 +41,21 @@ object AssociationRuleMining {
     salesOnly
   }
 
+  // Depending on what type you want to  filter; SALE or VIEW
+  def getInputDataPreparedForARM(env: ExecutionEnvironment, input: String): DataSet[String] = {
+
+    val data: DataSet[(String, String, String, String, String)] = env.readCsvFile(input)
+    val onlySales = data
+
+      // We filter SALE during pre-processing
+      //.filter(_._5.equals("SALE"))
+      .map(_._4.replace("f-", "")
+      .replace(";", " "))
+
+    return onlySales
+  }
+
+
   def main(args: Array[String]) {
 
     if (!parseParameters(args)) {
@@ -49,6 +64,11 @@ object AssociationRuleMining {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
+    val test: DataSet[String] = env.readTextFile("/home/vassil/workspace/useCaseZ1/input/TEST")
+    runArm(test, outputFilePath + "/test", maxIterations.toInt, minSupport.toInt)
+
+
+  /*
     if (isFamilyID.equals("1")){
       // Use that if you start algorithm with preprocessed data (with family ids)
       val salesOnlyFamilyId: DataSet[String] = getInputDataPreparedForARM(env, inputFilePath)
@@ -58,22 +78,10 @@ object AssociationRuleMining {
       // Use this data if you start algorithm with the raw data (with product ids)
       val salesOnlyProductId: DataSet[String] = getDataWithProductId(env)
       runArm(salesOnlyProductId, outputFilePath, maxIterations.toInt, minSupport.toInt)
-
     }
+    */
 
     env.execute("Scala AssociationRule Example")
-  }
-
-  // Depending on what type you want to  filter; SALE or VIEW
-  def getInputDataPreparedForARM(env: ExecutionEnvironment, input: String): DataSet[String] = {
-
-    val data: DataSet[(String, String, String, String, String)] = env.readCsvFile(input)
-    val onlySales = data
-      .filter(_._5.equals("SALE"))
-      .map(_._4.replace("f-", "")
-      .replace(";", " "))
-
-    return onlySales
   }
 
   private def runArm(parsedInput: DataSet[String], output: String, maxIterations: Int, minSup: Int): Unit = {
@@ -94,18 +102,22 @@ object AssociationRuleMining {
 
       val tempRulesNew = candidateRules
 
-      /* TODO Check if it will work wit the collect
       // TODO Is it ok to collect here?
-      val cntRules = candidateRules.collect.length
-      */
+      //val cntRules = candidateRules.collect.length
+
+      println("PRE#" + preRules.collect())
+
+      println("\n")
+
+      println("CAN#" + candidateRules.collect())
 
       if (kTemp >= 2) {
 
-        // TODO Change it with some kind of join with special function
+        // TODO is there some special join which can be used here?
         val confidences: DataSet[(String, String, Double)] = preRules
 
-          //.join(tempRulesNew)
 
+          // Are there some combinations that are surely not gonna be part of the result??
           .crossWithHuge(tempRulesNew)
           .filter { item => containsAllFromPreRule(item._2._1, item._1._1) }
 
@@ -114,11 +126,11 @@ object AssociationRuleMining {
               (input._1._1, input._2._1, 100 * (input._2._2 / input._1._2.toDouble))
             //RULE: [2, 6] => [2, 4, 6] CONF RATE: 4/6=66.66
           )
-        // TODO Should this be here ot in the main function?
+        // TODO Should this be here ot in the main function for the whole result at once?
         confidences.writeAsCsv(outputFilePath + "/armData/" + kTemp, "\n", ";", WriteMode.OVERWRITE)
       }
 
-      /* TODO comment back only if using wich the collect earlier
+      /* TODO comment back only if using with the collect earlier
       if (0 == cntRules) {
        // hasConverged = true
         kTemp+= 1
@@ -200,7 +212,9 @@ object AssociationRuleMining {
 
       .withBroadcastSet(prevRulesNew, "prevRules")
       // 2) Merge Candidate Set on Each Same Word
-      .groupBy(0).reduce((t1, t2) => (t1._1, t1._2 + t2._2))
+      // Group reduce
+      .groupBy(0)
+      .reduce((t1, t2) => (t1._1, t1._2 + t2._2))
       // 3) Pruning Step
       .filter(_._2 >= minSup)
   }

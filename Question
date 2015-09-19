@@ -6,3 +6,24 @@ What if we use collect as well to check the count of rules and stop iterations?
 
 
 LINE 197 / 199 takes too long .withBroadcastSet(prevRulesNew, "prevRules")
+
+
+
+Is the reduction of support a good idea?
+
+
+
+
+What'S the best way to extract user's ARs?
+
+
+
+
+What should be included in the paper?
+
+
+
+
+
+
+Cross?
