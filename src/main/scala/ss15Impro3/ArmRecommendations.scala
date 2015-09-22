@@ -2,11 +2,13 @@ package ss15Impro3
 
 import java.util
 
-import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.common.functions.{RichFlatMapFunction, FlatMapFunction, MapFunction}
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.functions.MapFunction
+
+import scala.util.Sorting
 
 object ArmRecommendations {
 
@@ -33,54 +35,87 @@ object ArmRecommendations {
 
 
     // Read data
-    val armData : DataSet[(String, String, String)]= env.readCsvFile(inputArmDataPath, "\n", ";")
-    val userPurchaseHistoryData : DataSet[(String, String)] = env.readCsvFile(inputUserDataPath)
+    val armData: DataSet[(String, String, String)] = env.readCsvFile(inputArmDataPath, "\n", ";")
 
-   val transformedUserPurchaseHistoryData = userPurchaseHistoryData.flatMap(new FlatMapFunction[(String, String), (String, String) ] {
-     override def flatMap(t: (String, String), collector: Collector[(String, String)]): Unit = {
-       val user = t._1
-       val items = t._2
+    //armData.writeAsText("/home/vassil/test/NEW/NEW")
+    // ([1487906, 1499395],[1499395, 1487906, 2456222],80.0)
 
-       for (item <- items.split(" ")){
-         collector.collect(user, item)
-       }
-     }
-   })
 
-    transformedUserPurchaseHistoryData.writeAsText("/home/vassil/test/1", WriteMode.OVERWRITE)
+    val userPurchaseHistoryData: DataSet[(String, String)] = env.readCsvFile(inputUserDataPath)
+
+    //userPurchaseHistoryData.writeAsText("/home/vassil/test/NEW/NEW2")
+    //(u-1000052,f-244923 f-1487906 f-1499395 f-2000570 f-2929304)
+
 
     val armDataChanged = armData.map(new MapFunction[(String, String, String), (String, String)] {
       override def map(t: (String, String, String)): (String, String) = {
 
-        val left = t._1.substring(1, t._1.length)
-        val items = t._2.substring(1, t._2.length() - 1).split(", ")
-
-        var itemsWithPrefix = ""
-
-        for(item <- items) {
-          itemsWithPrefix += " f-" + item
+        val itemsLeft= t._1.replace("[","").replace("]","").split(", ")
+        var leftItemsWithPrefix = ""
+        for (item <- itemsLeft) {
+          leftItemsWithPrefix += "f-" + item + " "
         }
 
-        ("f-" + left.replace("]",""), itemsWithPrefix)
+        val itemsRight = t._2.replace("[","").replace("]","").split(", ")
+        var rightItemsWithPrefix = ""
+        for (item <- itemsRight) {
+          rightItemsWithPrefix += "f-" + item + " "
+        }
+
+        (leftItemsWithPrefix.dropRight(1), rightItemsWithPrefix.dropRight(1))
       }
     })
 
-    armDataChanged.writeAsText("/home/vassil/test/2" , WriteMode.OVERWRITE)
-
-    val result = transformedUserPurchaseHistoryData
-      .joinWithHuge(armDataChanged)
-      .where(1)
-      .equalTo(0)
-      //.map(t => (t._1, t._2._2))
+    //armDataChanged.writeAsText("/home/vassil/test/NEW/NEW", WriteMode.OVERWRITE)
+    //(f-1487906, 1499395, f-1499395 f-1487906 f-2456222)
 
 
-    //productData.writeAsCsv(outputRecommendationPath + "/recommendationsPerUser" , "\n", ",", WriteMode.OVERWRITE)
-    result.writeAsText(outputRecommendationPath + "/recommendationsPerUser", WriteMode.OVERWRITE)
+    val recomendationsPerUser = userPurchaseHistoryData.flatMap(
 
+      new RichFlatMapFunction[(String, String), (String, String, String)]() {
+
+        var broadcastedRules: util.List[(String, String)] = null
+
+        override def open(config: Configuration): Unit = {
+          // 3. Access the broadcasted DataSet as a Collection
+          broadcastedRules = getRuntimeContext().getBroadcastVariable[(String, String)]("armData")
+        }
+
+        def flatMap(in: (String, String), out: Collector[(String, String, String)]) = {
+
+          val it = broadcastedRules.iterator()
+          while (it.hasNext) {
+
+            val rule = it.next()
+
+            val itemsInRule = rule._1.split(" ")
+
+            val itemsForUser = in._2.split(" ")
+
+            var containsAll = true
+            for (itemForRule <- itemsInRule) {
+
+              if (!itemsForUser.contains(itemForRule)){
+                containsAll = false
+              }
+            }
+
+            if (containsAll){
+              out.collect(in._1, rule._1, rule._2)
+            }
+
+          }
+
+        }
+
+      }).withBroadcastSet(armDataChanged, "armData")
+
+    recomendationsPerUser.writeAsText(outputRecommendationPath + "/recommendationsPerUser", WriteMode.OVERWRITE)
     env.execute("Execute Arm Recommendations")
+
+
+
   }
-
-
 }
 
 class ArmRecommendations {
