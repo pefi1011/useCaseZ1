@@ -10,7 +10,8 @@ import org.apache.flink.util.Collector
 object GenerateUserPurchaseHistory {
 
  // example for cli params: inputPath outputPath
- // "/Software/Workspace/useCaseZ1/input/datzal.txt" "/Software/Workspace/useCaseZ1/output"
+ // "/home/vassil/workspace/useCaseZ1/input/preProcessed/sessionFamily/" "/home/vassil/workspace/useCaseZ1/output/userPurchaseHistory"
+
   var inputPath = ""
   var outputPath = ""
 
@@ -31,7 +32,7 @@ object GenerateUserPurchaseHistory {
 
 
 
-    val transactionData: DataSet[(String,String,String,String,String)] = env.readCsvFile(inputPath + "preProcessedData.csv")
+    val transactionData: DataSet[(String,String,String,String,String)] = env.readCsvFile(inputPath)
 
     val combinedItemsForUser = transactionData
       .filter(_._5.equals("SALE"))

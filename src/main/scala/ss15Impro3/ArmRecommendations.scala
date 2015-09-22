@@ -61,7 +61,7 @@ object ArmRecommendations {
           itemsWithPrefix += " f-" + item
         }
 
-        ("f-" + left, itemsWithPrefix)
+        ("f-" + left.replace("]",""), itemsWithPrefix)
       }
     })
 

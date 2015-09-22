@@ -2,13 +2,37 @@ package ss15Impro3
 
 import java.util
 
-import org.apache.flink.api.common.functions.{MapFunction, RichFlatMapFunction}
+import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable
+import org.apache.flink.api.common.functions.{RichMapFunction, RichGroupReduceFunction, MapFunction, RichFlatMapFunction}
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.util.Collector
 
 object AssociationRuleMining {
+
+  @Combinable
+  class MyRichGroupReducer extends RichGroupReduceFunction[(String, Int), (String, Int)] {
+    def reduce(
+                in: java.lang.Iterable[(String, Int)],
+                out: Collector[(String, Int)]) : Unit = {
+
+      var key : String = null
+      var intSum = 0
+
+      val it = in.iterator()
+      while (it.hasNext) {
+
+        val item = it.next()
+
+        key = item._1
+        intSum += item._2
+      }
+
+      out.collect(key, intSum)
+    }
+
+  }
 
   private var inputFilePath: String = ""
   private var outputFilePath: String = ""
@@ -62,13 +86,15 @@ object AssociationRuleMining {
       return
     }
 
+
     val env = ExecutionEnvironment.getExecutionEnvironment
 
+    /*
     val test: DataSet[String] = env.readTextFile("/home/vassil/workspace/useCaseZ1/input/TEST")
     runArm(test, outputFilePath + "/test", maxIterations.toInt, minSupport.toInt)
+    */
 
 
-  /*
     if (isFamilyID.equals("1")){
       // Use that if you start algorithm with preprocessed data (with family ids)
       val salesOnlyFamilyId: DataSet[String] = getInputDataPreparedForARM(env, inputFilePath)
@@ -79,9 +105,23 @@ object AssociationRuleMining {
       val salesOnlyProductId: DataSet[String] = getDataWithProductId(env)
       runArm(salesOnlyProductId, outputFilePath, maxIterations.toInt, minSupport.toInt)
     }
-    */
 
     env.execute("Scala AssociationRule Example")
+  }
+
+  def checkConf(candidateRules: DataSet[(String, Int)], preRules: DataSet[(String, Int)], d: Double): DataSet[(String, Int)] = {
+    candidateRules.flatMap( new RichFlatMapFunction [(String, Int), (String, Int)]() {
+
+      var broadcastedPreRules: util.List[(String, Int)] = null
+      override def open(config: Configuration): Unit = {
+        // 3. Access the broadcasted DataSet as a Collection
+        broadcastedPreRules = getRuntimeContext().getBroadcastVariable[(String, Int)]("prevRules")
+      }
+
+      override def flatMap(in: (String, Int), collector: Collector[(String, Int)]): Unit = {
+
+      }
+    })
   }
 
   private def runArm(parsedInput: DataSet[String], output: String, maxIterations: Int, minSup: Int): Unit = {
@@ -100,24 +140,18 @@ object AssociationRuleMining {
 
       val candidateRules: DataSet[(String, Int)] = findCandidates(parsedInput, preRules, kTemp, support)
 
-      val tempRulesNew = candidateRules
-
-      // TODO Is it ok to collect here?
-      //val cntRules = candidateRules.collect.length
-
-      println("PRE#" + preRules.collect())
-
-      println("\n")
-
-      println("CAN#" + candidateRules.collect())
+      //TODO OLD CODE
+      //val tempRulesNew = candidateRules
 
       if (kTemp >= 2) {
 
-        // TODO is there some special join which can be used here?
+
+        //TODO OLD CODE
+        /*
         val confidences: DataSet[(String, String, Double)] = preRules
 
+          //.join(tempRulesNew)
 
-          // Are there some combinations that are surely not gonna be part of the result??
           .crossWithHuge(tempRulesNew)
           .filter { item => containsAllFromPreRule(item._2._1, item._1._1) }
 
@@ -126,25 +160,22 @@ object AssociationRuleMining {
               (input._1._1, input._2._1, 100 * (input._2._2 / input._1._2.toDouble))
             //RULE: [2, 6] => [2, 4, 6] CONF RATE: 4/6=66.66
           )
-        // TODO Should this be here ot in the main function for the whole result at once?
+        // TODO Should this be here ot in the main function?
         confidences.writeAsCsv(outputFilePath + "/armData/" + kTemp, "\n", ";", WriteMode.OVERWRITE)
+        */
+
+
+        preRules.writeAsCsv(outputFilePath + "/armData/" + kTemp, "\n", ";", WriteMode.OVERWRITE)
       }
 
-      /* TODO comment back only if using with the collect earlier
-      if (0 == cntRules) {
-       // hasConverged = true
-        kTemp+= 1
-      } else {
-      */
       preRules = candidateRules
 
       kTemp += 1
 
-      // TODO
-      support -= 1
-      /*
+      // TODO Reduce support each three iterations
+      if (kTemp % 2 == 0) {
+        support -= 1
       }
-      */
     }
 
     printf("Converged K-Path %s\n", kTemp)
@@ -158,7 +189,6 @@ object AssociationRuleMining {
       new RichFlatMapFunction[String, (String, Int)]() {
 
         var broadcastedPreRules: util.List[(String, Int)] = null
-
         override def open(config: Configuration): Unit = {
           // 3. Access the broadcasted DataSet as a Collection
           broadcastedPreRules = getRuntimeContext().getBroadcastVariable[(String, Int)]("prevRules")
@@ -166,7 +196,11 @@ object AssociationRuleMining {
 
         def flatMap(in: String, out: Collector[(String, Int)]) = {
 
-          val cItem1: Array[Int] = in.split(" ").map(_.toInt).sorted
+          val cItem1: Array[Int] = in
+            .split(" ")
+            .map(_.toInt)
+            // We sort the ids on the row so they look always the same. The sequence is not important for AR
+            .sorted
 
           val combGen1 = new CombinationGenerator()
           val combGen2 = new CombinationGenerator()
@@ -185,19 +219,14 @@ object AssociationRuleMining {
               while (combGen2.hasMoreCombinations && valid) {
                 val nextComb = java.util.Arrays.toString(combGen2.next)
 
-                // TODO If broadcast variable is bad solution then try this -> (BUT) Not serializable exception (These should be the dataset solution)
-                // Distributed way for the bottom "for"
-                /*
-                var containsItemNew : Boolean = prevRulesNew.map{ item =>
-                  item._1.equals(nextComb)
-                }.reduce(_ || _).collect(0)
-                */
-
                 var containsItem = false
-                for (i <- 0 to (broadcastedPreRules.size() - 1)) {
+
+                var i = 0
+                while ( i < broadcastedPreRules.size() && !containsItem) {
                   if (broadcastedPreRules.get(i)._1.equals(nextComb)) {
                     containsItem = true
                   }
+                  i += 1
                 }
 
                 valid = containsItem
@@ -209,17 +238,23 @@ object AssociationRuleMining {
           }
         }
       })
-
       .withBroadcastSet(prevRulesNew, "prevRules")
       // 2) Merge Candidate Set on Each Same Word
       // Group reduce
+
       .groupBy(0)
-      .reduce((t1, t2) => (t1._1, t1._2 + t2._2))
+
+      .reduceGroup(new MyRichGroupReducer)
+      //.reduce((t1, t2) => (t1._1, t1._2 + t2._2))
       // 3) Pruning Step
       .filter(_._2 >= minSup)
   }
 
+
+
   private def containsAllFromPreRule(newRule: String, preRule: String): Boolean = {
+
+    println("NEW" + newRule)
 
     // TODO do this some other way
     val newRuleCleaned = newRule.replaceAll("\\s+", "").replaceAll("[\\[\\](){}]", "")
