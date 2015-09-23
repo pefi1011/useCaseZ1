@@ -141,13 +141,13 @@ object AssociationRuleMining {
       val candidateRules: DataSet[(String, Int)] = findCandidates(parsedInput, preRules, kTemp, support)
 
       //TODO OLD CODE
-      //val tempRulesNew = candidateRules
+      val tempRulesNew = candidateRules
 
       if (kTemp >= 2) {
 
 
         //TODO OLD CODE
-        /*
+
         val confidences: DataSet[(String, String, Double)] = preRules
 
           //.join(tempRulesNew)
@@ -162,10 +162,10 @@ object AssociationRuleMining {
           )
         // TODO Should this be here ot in the main function?
         confidences.writeAsCsv(outputFilePath + "/armData/" + kTemp, "\n", ";", WriteMode.OVERWRITE)
-        */
 
 
-        preRules.writeAsCsv(outputFilePath + "/armData/" + kTemp, "\n", ";", WriteMode.OVERWRITE)
+
+        //preRules.writeAsCsv(outputFilePath + "/armData/" + kTemp, "\n", ";", WriteMode.OVERWRITE)
       }
 
       preRules = candidateRules
